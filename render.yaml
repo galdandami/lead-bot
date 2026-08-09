@@ -1,0 +1,50 @@
+# Render Blueprint — деплой бэкенда заявок (бесплатный тариф, бессрочный)
+# Деплой: залить папку в GitHub-репозиторий, затем в Render Dashboard
+#   -> Blueprints -> New Blueprint Instance -> выбрать репозиторий.
+# Секреты задаются в Dashboard (Environment), НЕ в этом файле:
+#   BOT_TOKEN, LEAD_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_IDS,
+#   GSHEETS_ENABLED, GSHEETS_SPREADSHEET_ID, GSHEETS_SHEET,
+#   GSHEETS_CLIENT_ID, GSHEETS_CLIENT_SECRET, GSHEETS_REFRESH_TOKEN,
+#   MAX_BOT_TOKEN, MAX_WEBHOOK_SECRET, MAX_OWNER_IDS
+services:
+  - type: web
+    name: lead-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: PORT
+        value: 10000
+      - key: BOT_TOKEN
+        sync: false
+      - key: LEAD_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: OWNER_IDS
+        sync: false
+      - key: GSHEETS_ENABLED
+        value: "true"
+      - key: GSHEETS_SPREADSHEET_ID
+        sync: false
+      - key: GSHEETS_SHEET
+        value: "Заявки"
+      - key: GSHEETS_CLIENT_ID
+        sync: false
+      - key: GSHEETS_CLIENT_SECRET
+        sync: false
+      - key: GSHEETS_REFRESH_TOKEN
+        sync: false
+      - key: MAX_BOT_TOKEN
+        sync: false
+      - key: MAX_WEBHOOK_SECRET
+        sync: false
+      - key: MAX_OWNER_IDS
+        sync: false
