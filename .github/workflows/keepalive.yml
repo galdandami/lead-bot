@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping backend
-        run: curl -fsS -o /dev/null -w "%{http_code}" "${{ secrets.LEAD_BOT_URL }}/" || true
-      - name: Ping Supabase API
-        run: curl -fsS -o /dev/null -w "%{http_code}" "https://udozteluyreuhfdgjiqq.supabase.co/rest/v1/" || true
+        run: curl -fsS -o /dev/null -w "%{http_code}\n" "${{ secrets.LEAD_BOT_URL }}/"
+      - name: Ping Supabase REST API (authenticated, counts as activity)
+        run: |
+          curl -fsS -o /dev/null -w "%{http_code}\n" \
+            -H "apikey: sb_publishable_594WMbRbwJNRKmURHKPK-A_ZjvklqWO" \
+            -H "Authorization: Bearer sb_publishable_594WMbRbwJNRKmURHKPK-A_ZjvklqWO" \
+            "https://udozteluyreuhfdgjiqq.supabase.co/rest/v1/leads?select=id&limit=1"
