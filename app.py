@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import threading
 from flask import Flask, request, jsonify
 import requests
 import config
@@ -61,6 +62,15 @@ def save_chat_ids(ids):
             json.dump(ids, f)
     except Exception as e:
         log.error("save chat_ids failed: %s", e)
+
+
+def _run_in_parallel(workers):
+    """Run callables in parallel threads; each worker already swallows its own errors."""
+    threads = [threading.Thread(target=w, daemon=True) for w in workers]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
 
 
 def tg_send(chat_id, text):
@@ -201,8 +211,9 @@ def max_send(target_id, text):
 
 @app.route("/debug", methods=["GET"])
 def debug():
+    # NB: never expose secrets here (LEAD_SECRET, tokens) — only safe metadata.
     return jsonify({
-        "lead_secret": LEAD_SECRET,
+        "lead_secret_set": bool(LEAD_SECRET),
         "bot_token_len": len(BOT_TOKEN),
         "supabase_url": SUPABASE_URL,
         "owner_ids": OWNER_IDS,
@@ -237,8 +248,6 @@ def lead():
     from datetime import datetime, timedelta, timezone
     msk = timezone(timedelta(hours=3))
     lead["created_at"] = datetime.now(msk).strftime("%Y-%m-%d %H:%M:%S")
-    save_lead(lead)
-    save_to_sheets(lead)
 
     text = "— Заявка с сайта —\n"
     if title:
@@ -248,13 +257,17 @@ def lead():
     text += "Описание:\n" + (message or "—")
     if note:
         text += "\nСообщение для нас:\n" + note
-    recipients = set(OWNER_IDS + load_chat_ids())
-    for cid in recipients:
-        tg_send(cid, text)
 
+    recipients = set(OWNER_IDS + load_chat_ids())
     max_recipients = set(str(x) for x in (MAX_OWNER_IDS + load_max_chat_ids()))
-    for uid in max_recipients:
-        max_send(uid, text)
+
+    # Run all downstream deliveries in parallel: worst case is bounded by the
+    # slowest single call (~20s) instead of the sequential sum (~65s).
+    _run_in_parallel(
+        [lambda: save_lead(lead), lambda: save_to_sheets(lead)]
+        + [lambda cid=cid: tg_send(cid, text) for cid in recipients]
+        + [lambda uid=uid: max_send(uid, text) for uid in max_recipients]
+    )
 
     return jsonify({"ok": True})
 
